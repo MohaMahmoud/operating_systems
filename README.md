@@ -1,6 +1,7 @@
 # Operating Systems Workspace
 
-Dieses Repository enthält eine strukturierte Entwicklungsumgebung für die Programmieraufgaben im Modul **Betriebssysteme**.  
+Dieses Repository enthält eine strukturierte Entwicklungsumgebung für die Programmieraufgaben im Modul **Betriebssysteme**.
+
 Ziel ist es, die Aufgaben **übersichtlich** und **ohne unnötigen technischen Aufwand** bearbeiten zu können.
 
 ## Voraussetzungen
