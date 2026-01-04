@@ -78,6 +78,21 @@ void _enqueue(Queue *queue, int data)
     (void)data;
 
     // TODO: Implement
+    QueueItem *newItem = malloc(sizeof(QueueItem));
+    if (newItem == NULL) {
+        return; 
+    }
+    newItem->data = data;
+    newItem->next = NULL;
+
+    if (queue->tail == NULL) {
+        queue->head = newItem;
+        queue->tail = newItem;
+        newItem->next = NULL;
+        return;
+    }
+    queue->tail->next = newItem; 
+    queue->tail = newItem;
 }
 
 /*
@@ -89,12 +104,23 @@ int _dequeue(Queue *queue)
     (void)queue;
 
     // TODO: Implement
-    return -1;
+    if (queue->head == NULL) {
+        return -1; 
+    }
+    QueueItem *temp = queue->head;
+    int data = temp->data;
+    queue->head = queue->head->next;
+    free(temp);
+    return data;
 }
+
+Queue readyQueue;
 
 void initScheduler()
 {
     // TODO: Implement if you need to initialize any global variables you added
+    readyQueue.head = NULL;
+    readyQueue.tail = NULL;
 }
 
 /*
@@ -103,8 +129,9 @@ void initScheduler()
 void onProcessReady(int processId)
 {
     (void)processId;
-
     // TODO: Implement
+    _processes[processId].state = STATE_READY;
+    _enqueue(&readyQueue, processId);
 }
 
 /*
@@ -116,6 +143,8 @@ void onProcessPreempted(int processId)
     (void)processId;
 
     // TODO: Implement
+    _processes[processId].state = STATE_READY;
+    _enqueue(&readyQueue, processId);
 }
 
 /*
@@ -127,6 +156,7 @@ void onProcessBlocked(int processId)
     (void)processId;
 
     // TODO: Implement
+    _processes[processId].state = STATE_WAITING;
 }
 
 /*
@@ -135,5 +165,10 @@ void onProcessBlocked(int processId)
 int scheduleNextProcess()
 {
     // TODO: Implement
+    int nextProcessId = _dequeue(&readyQueue);
+    if (nextProcessId != -1) {
+        _processes[nextProcessId].state = STATE_RUNNING;
+        return nextProcessId;
+    }
     return -1;
 }

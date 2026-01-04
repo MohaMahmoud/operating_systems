@@ -21,9 +21,13 @@ entry* allocateEntry(int value)
  */
 void freeEntry(entry *entry)
 {
-    (void) entry;
-
     // TODO: Add code here.
+    if (entry->prev != NULL) {
+        (*(*entry).prev).next = (*entry).next;
+    }
+    if (entry->next != NULL) {
+        (*(*entry).next).prev = (*entry).prev;
+    }
     free(entry);
 }
 
@@ -32,10 +36,16 @@ void freeEntry(entry *entry)
  */
 void insertValue(linkedlist *list, int value)
 {
-    (void) list;
-    (void) value;
-
     // TODO: Add code here.
+    entry *new_node = allocateEntry(value);
+    if (new_node == NULL) { return; }
+    if (list->head != NULL) {
+        list->head->prev = new_node;
+        new_node->next = list->head;
+        list->head = new_node;
+    } else {
+        list->head = new_node;
+    }
 }
 
 /*
@@ -43,10 +53,17 @@ void insertValue(linkedlist *list, int value)
  */
 entry* findFirstEntryWithValue(linkedlist *list, int value)
 {
-    (void) list;
-    (void) value;
-
     // TODO: Add code here.
+    if (list == NULL || list->head == NULL) {
+        return NULL;
+    }
+    entry *current = list->head;
+    while (current != NULL) {
+        if (current->value == value) {
+            return current;
+        }
+        current = current->next;
+    }
     return NULL;
 }
 
@@ -55,8 +72,22 @@ entry* findFirstEntryWithValue(linkedlist *list, int value)
  */
 void removeFirstEntryWithValue(linkedlist *list, int value)
 {
-    (void) list;
-    (void) value;
-    
-    // TODO: Add code here.
+    entry *entry = findFirstEntryWithValue(list, value);
+    if (entry == NULL) {
+        return;
+    }
+
+    if (entry->next == entry) {
+        list->head = NULL;
+    } else {
+        entry->next->prev = entry->prev;
+        entry->prev->next = entry->next;
+
+        if (list->head == entry) {
+            list->head = entry->next;
+        }
+    }
+    freeEntry(entry);
+
 }
+
