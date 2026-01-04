@@ -8,7 +8,12 @@ entry* allocateEntry(int value)
     (void) value;
 
     // TODO: Add code here.
-    return NULL;
+    entry *new_node = (entry*) malloc(sizeof(entry));
+    if (new_node == NULL) { return NULL; }
+    (*new_node).value = value;
+    new_node->next = NULL; 
+    new_node->prev = NULL;
+    return new_node;
 }
 
 /*
@@ -19,6 +24,7 @@ void freeEntry(entry *entry)
     (void) entry;
 
     // TODO: Add code here.
+    free(entry);
 }
 
 /*
