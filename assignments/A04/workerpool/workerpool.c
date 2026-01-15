@@ -22,6 +22,8 @@ uint32_t _nextJob = 0;
 uint32_t _numJobs = 0;
 
 // ---> TODO: Add variables as neeed <---
+static pthread_t *_workers  = NULL;
+static uint32_t _numWorkers = 0;
 
 /*
  * The id of the current thread. The id is initialized by the workers main
@@ -61,8 +63,20 @@ int _enqueue(WorkFunc func, int arg)
     (void)arg;
 
     // ---> TODO: Implement <---
+    assert(func != NULL);
+    assert(_nextJob < MAX_JOBS);
 
-    return -1;
+    if (_numJobs == MAX_JOBS) {
+        return -1;
+    }
+    uint32_t nextEmpty = (_nextJob + _numJobs) % MAX_JOBS;
+    assert(_workItems[nextEmpty].func == NULL);
+    _workItems[nextEmpty].func = func;
+    _workItems[nextEmpty].arg = arg;
+    _numJobs++;
+    return 0;
+
+    
 }
 
 /*
@@ -74,8 +88,14 @@ int _dequeue(WorkItem *item)
     (void)item;
 
     // ---> TODO: Implement <---
-
-    return -1;
+    assert(item != NULL);
+    if (_numJobs == 0) {
+        return -1;
+    }
+    *item = _workItems[_nextJob];
+    _nextJob = (_nextJob + 1) % MAX_JOBS;
+    _numJobs--;
+    return 0;
 }
 
 /*
@@ -109,7 +129,11 @@ void* _workerMain(void *arg)
     _workerId = (int)((intptr_t)arg);
 
     // ---> TODO: Implement fetching and execution of jobs <---
-
+    WorkItem item;
+    while (_waitForWork(&item)) {
+        assert(item.func != NULL);
+        item.func(item.arg); 
+    }
     return NULL; // Will implicitly call pthread_exit() with NULL;
 }
 
@@ -122,7 +146,13 @@ static int _startWorkers(uint32_t num)
     (void)num;
 
     // ---> TODO: Implement <---
-
+    for (_numWorkers = 0; _numWorkers < num; ++_numWorkers) {
+        int r = pthread_create(&_workers[_numWorkers], NULL, _workerMain,
+                               (void*)((intptr_t)_numWorkers));
+        if (r != 0) {
+            return -1;
+        }
+    }
     return -1;
 }
 
@@ -133,6 +163,15 @@ static int _startWorkers(uint32_t num)
 static void _waitForWorkers(void)
 {
     // ---> TODO: Implement <---
+    if (_workers == NULL) {
+        return;
+    }
+    for (uint32_t i = 0; i < _numWorkers; ++i) {
+        pthread_join(_workers[i], NULL);
+    }
+    free(_workers);
+    _workers = NULL;
+    _numWorkers = 0;
 }
 
 /*
@@ -158,6 +197,15 @@ int initializeWorkerPool(void)
 
     uint32_t n = 4;
     // ---> TODO: Initialize n and your variables here <---
+    long numCores = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numCores == -1) {
+        return -1;
+    }
+    n = (numCores < 4) ? 4 : (uint32_t)numCores;
+    _workers = (pthread_t*)malloc(sizeof(pthread_t) * n);
+    if (_workers == NULL) {
+        goto error;
+    }
 
     // Denote the future workers that they should not exit right away, but
     // wait for work. We use a software barrier to prevent the compiler from

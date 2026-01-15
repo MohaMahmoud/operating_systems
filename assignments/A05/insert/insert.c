@@ -20,7 +20,15 @@ void insert_tut(int *a, size_t *length, int z)
  */
 void insert(int **array, size_t *length, size_t *capacity, int z)
 {
-	(void) array; (void) length; (void) capacity; (void) z;
-	int a = *array[1];
-	(void) a;
+	if (*length == *capacity) { 
+		*capacity += 10; 
+		int *new_array = (int*)malloc(*capacity * sizeof(int));
+		if (new_array == NULL) return;
+		for (size_t i = 0; i < *length; i++) {
+			new_array[i] = (*array)[i];
+		}
+		free(*array);
+		*array = new_array;
+	}
+	insert_tut(*array, length, z);
 }
