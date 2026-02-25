@@ -66,5 +66,5 @@ python3 ../tools/test_assignment.py
 ## Wichtige Hinweise
 
 - Makefiles, `testlib` und `testrunner` nicht verändern
-- Pro Aufgabe nur die zugehörigen `.c`` Dateien bearbeiten
+- Pro Aufgabe nur die zugehörigen `.c` Dateien bearbeiten
 - Änderungen an den Templates oder der Struktur können dazu führen, dass Tests nicht mehr korrekt laufen
