@@ -102,25 +102,67 @@ void dumpAllocator()
  */
 uint64_t roundUp(uint64_t n)
 {
-    (void) n;
-
-    // TODO: Implement
-    return 0;
+    return (uint64_t)((n + 15) / 16) * 16;
 }
 
 void *my_malloc(uint64_t size)
 {
-    (void) size;
+    uint64_t neededSize = roundUp(size) + HEADER_SIZE;
 
-    // TODO: Implement
+    Block *currentBlock = _firstFreeBlock;
+    Block *prev = NULL; 
+
+    while (currentBlock != NULL) {
+        
+        if (currentBlock->size >= neededSize) {
+            
+        
+            if (currentBlock->size >= neededSize + HEADER_SIZE) {
+                
+                // === SPLIT LOGIK ===
+                
+                // A. Adresse des neuen freien Blocks berechnen
+                // WICHTIG: Cast auf (uint8_t*), damit wir Byte-weise addieren!
+                Block *newFreeBlock = (Block*)((uint8_t*)currentBlock + neededSize);
+                
+                // B. Den neuen Block initialisieren
+                newFreeBlock->size = currentBlock->size - neededSize; // Restgröße
+                newFreeBlock->next = currentBlock->next;              // Kette weiterführen
+                
+                // C. Den aktuellen Block auf die angeforderte Größe schrumpfen
+                currentBlock->size = neededSize;
+                
+
+
+                if (prev == NULL) {
+                    _firstFreeBlock = newFreeBlock;
+                } else {
+                    prev->next = newFreeBlock;
+                }
+
+            } else {
+                if (prev == NULL) {
+                    _firstFreeBlock = currentBlock->next;
+                } else {
+                    prev->next = currentBlock->next;
+                }
+            }
+
+            return (void*)currentBlock->data;
+        }
+
+        prev = currentBlock;
+        currentBlock = currentBlock->next;
+    }
+
     return NULL;
 }
 
 void my_free(void *address)
 {
-    (void) address;
-
-    // TODO: Implement
+    Block toFree = *(Block*)((uint8_t*)address - HEADER_SIZE);
+    Block *currentBlock = _firstFreeBlock;
+    Block *prev = NULL;
 }
 
 

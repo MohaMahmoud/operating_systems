@@ -3,10 +3,7 @@
  * Rotates a 64 bit integer by one byte (8 bit) to the right.
  */
 uint64_t rotr(uint64_t v) {
-    (void) v;
-
-    // TODO
-    return 0;
+    return (v >> 8) | (v << 56);
 }
 
 /**
@@ -15,11 +12,11 @@ uint64_t rotr(uint64_t v) {
  * As a result calling pattern_memset_byte again with the same pattern will continue the pattern.
  */
 void pattern_memset_byte(void *s, uint64_t *pat, size_t n) {
-    (void) s;
-    (void) pat;
-    (void) n;
-
-    // TODO    
+    unsigned char *buf = (unsigned char *)s;
+    for (size_t i = 0; i<n; i++) {
+        buf[i] = (unsigned char)(*pat & 0xFF);
+        *pat = rotr(*pat);
+    }
 }
 
 /**
@@ -27,9 +24,25 @@ void pattern_memset_byte(void *s, uint64_t *pat, size_t n) {
  * The function should minimize the number of memory accesses.
  */
 void pattern_memset(void *s, uint64_t pat, size_t n) {
-    (void) s;
-    (void) pat;
-    (void) n;
+    
+    uint64_t current_pat = pat;
+    unsigned char *addr = (unsigned char *)s;
 
-    // TODO
+    while ( ((uintptr_t)addr & 0x7 != 0) && (n > 0) ) {
+        pattern_memset_byte(addr, &current_pat, 1);
+        addr += 1;
+        n    -= 1;
+    }
+    
+    while (n >= 8) {
+        *(uint64_t *)addr = current_pat;
+        
+        addr += 8;
+        n    -= 8;
+    }
+
+    
+    if (n > 0) {
+        pattern_memset_byte(addr, &current_pat, n);
+    }
 }

@@ -40,7 +40,9 @@ typedef struct _Message {
 mqd_t startClient(void)
 {
     // TODO: Open the message queue previously created by the server
-    return -1;
+    mqd_t client = mq_open(QUEUE_NAME, O_WRONLY);
+
+    return client;
 }
 
 int sendExitTask(mqd_t client)
@@ -48,7 +50,9 @@ int sendExitTask(mqd_t client)
     (void)client;
 
     // TODO: Send the exit command to the server.
-    return -1;
+    Message msg;
+    msg.command = CmdExit;
+    return mq_send(client, (const char *)&msg, sizeof(Message), 0);
 }
 
 int sendAddTask(mqd_t client, int operand1, int operand2)
@@ -58,7 +62,11 @@ int sendAddTask(mqd_t client, int operand1, int operand2)
     (void)operand2;
 
     // TODO: Send the add command with the operands
-    return -1;
+    Message msg;
+    msg.command = CmdAdd;
+    msg.parameter1 = operand1;
+    msg.parameter2 = operand2;
+    return mq_send(client, (const char *)&msg, sizeof(Message), 0);
 }
 
 int sendSubtractTask(mqd_t client, int operand1, int operand2)
@@ -68,7 +76,13 @@ int sendSubtractTask(mqd_t client, int operand1, int operand2)
     (void)operand2;
 
     // TODO: Send the sub command with the operands
-    return -1;
+    Message msg;
+    msg.command = CmdSubtract;
+    msg.parameter1 = operand1;
+    msg.parameter2 = operand2;
+
+    // Senden der Subtraktions-Anforderung
+    return mq_send(client, (const char *)&msg, sizeof(Message), 0);
 }
 
 int stopClient(mqd_t client)
@@ -76,11 +90,61 @@ int stopClient(mqd_t client)
     (void)client;
 
     // TODO: Clean up anything on the client-side
-    return -1;
+    return mq_close(client);
 }
 
 int runServer(void)
 {
     // TODO: Implement the server
-    return -1;
+    struct mq_attr attr;
+    attr.mq_flags = 0;               // Flags (werden bei mq_open ignoriert)
+    attr.mq_maxmsg = 10;             // Anforderung: "space for 10 messages"
+    attr.mq_msgsize = sizeof(Message); // Anforderung: "takes Message structures"
+    attr.mq_curmsgs = 0;             // Aktuelle Nachrichten (wird ignoriert)
+
+    mqd_t message_queue = mq_open(QUEUE_NAME, O_CREAT | O_RDONLY | O_EXCL, 0644, &attr);
+    if (message_queue == (mqd_t)-1) {
+        return -1;
+    }
+    int returnValue = 0;
+    Message msg;
+    while (1) {
+        // "Receive the message ... with the highest priority" 
+        // Der Puffer muss mindestens mq_msgsize groß sein.
+        ssize_t bytes_read = mq_receive(message_queue, (char *)&msg, sizeof(Message), NULL);
+
+        if (bytes_read == -1) {
+            returnValue = -1; // Fehler beim Empfangen
+            break;
+        }
+
+        // Verarbeitung der Befehle
+        if (msg.command == CmdExit) {
+            // "CmdExit Exits the server"
+            returnValue = 0;
+            break;
+        } 
+        else if (msg.command == CmdAdd) {
+            // "Adds the two parameters ... prints the result"
+            int result = msg.parameter1 + msg.parameter2;
+            printf(FORMAT_STRING_ADD, msg.parameter1, msg.parameter2, result);
+        } 
+        else if (msg.command == CmdSubtract) {
+            // "Subtracts the second ... from the first ... prints the result"
+            int result = msg.parameter1 - msg.parameter2;
+            printf(FORMAT_STRING_SUBTRACT, msg.parameter1, msg.parameter2, result);
+        } 
+        else {
+            // "Exits ... on reception of an unknown command"
+            returnValue = -1; // Unbekannter Befehl wird als Fehler gewertet
+            break;
+        }
+    }
+
+    // 4. Aufräumen (Cleanup)
+    // "Closes the message queue on exit and unlinks it." [cite: 188, 225]
+    mq_close(message_queue);
+    mq_unlink(QUEUE_NAME);
+
+    return returnValue;
 }

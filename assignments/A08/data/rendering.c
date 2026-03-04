@@ -9,11 +9,16 @@
  * \attention even indices use the upper bits (7:4), odd indices use the lower bits (3:0)
  */
 int color_at(const uint8_t *data, int index) {
-    (void) data;
-    (void) index;
 
     // TODO: return data encoded at 4-bit-index into the data array
-    return 0;
+    int position = index / 2;
+    int position_in_byte = index % 2;
+    int byte = data[position];
+    if (position_in_byte == 0) {
+        return (byte >> 4) & 0x0F;
+    } else {
+        return byte & 0x0F;
+    }
 }
 
 /*!

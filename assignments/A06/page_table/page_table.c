@@ -36,6 +36,48 @@ void flushTLB()
     memset(&_tlb, 0, sizeof(_tlb));
 }
 
+int _setPte(uint32_t virtualBase, uint32_t pte)
+{
+    assert(_cr3 != NULL);
+    assert(_getOffset(virtualBase) == 0);
+
+    // (1) Get the page table from the given address
+    uint32_t pdi = _getPageDirectoryIndex(virtualBase);
+    assert(pdi < ENTRIES_PER_TABLE);
+
+    uint64_t pde = _cr3->entries[pdi];
+    PageTable *pageTable = NULL;
+    if (!(pde & PAGE_PRESENT_MASK)) {
+        // The page table has not been allocated yet. Allocate a new,
+        // aligned one and clear it to reset all present bits in the PTEs.
+        if (posix_memalign((void**)&pageTable, sizeof(PageTable),
+                sizeof(PageTable)) != 0) {
+            return -1;
+        }
+
+        assert(pageTable != NULL);
+        memset(pageTable, 0, sizeof(PageTable));
+
+        // Register the new page table in the page directory.
+        uint64_t address = pointerToInt(pageTable);
+        assert((address & OFFSET_MASK) == 0);
+
+        pde = address | PAGE_PRESENT_MASK;
+        _cr3->entries[pdi] = pde;
+    } else {
+        uint64_t pageTableAddress = pde & PAGE_DIRECTORY_ADDRESS_MASK;
+        pageTable = (PageTable*)intToPointer(pageTableAddress);
+    }
+
+    // (2) Set the specified page table entry
+    uint32_t pti = _getPageTableIndex(virtualBase);
+    assert(pti < ENTRIES_PER_TABLE);
+
+    pageTable->entries[pti] = pte;
+
+    return 0;
+}
+
 int mapPage(uint32_t virtualBase, uint32_t physicalBase, ReadWrite accessMode,
     PrivilegeLevel privileges)
 {
@@ -43,19 +85,22 @@ int mapPage(uint32_t virtualBase, uint32_t physicalBase, ReadWrite accessMode,
         return -1;
     }
 
-    assert(_cr3 != NULL);
+    // Build the page table entry from the physical base and flags
+    uint32_t pte = physicalBase | PAGE_PRESENT_MASK;
 
-    (void) accessMode;
-    (void) privileges;
+    if (accessMode == ACCESS_WRITE) {
+        pte |= PAGE_READWRITE_MASK;
+    }
 
-    // ----------------
-    // Add a new page table entry.
-    // If you need more space for your table data structure, you can use
-    // posix_memalign() to get 4kB-Aligned blocks of memory
-    // Remember to invalidate the TLB line for that page.
-    // ----------------
+    if (privileges == USER_MODE) {
+        pte |= PAGE_USERMODE_MASK;
+    }
 
-    return 0;
+    // Set the new PTE and invalidate any cached version in the TLB
+    int res = _setPte(virtualBase, pte);
+    invalidateTLBEntry(virtualBase);
+
+    return res;
 }
 
 int translatePageTable(uint32_t *address, ReadWrite accessMode,

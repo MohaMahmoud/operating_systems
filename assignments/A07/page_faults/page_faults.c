@@ -111,33 +111,76 @@ uint32_t _loadFromDisk(uint32_t diskAddress)
 
 // Called whenever an access to a non-present page occurs. The handler
 // should not be called for access violations.
-int handlePageFault(uint32_t virtualBase, uint32_t pte)
-{
-    assert(_getOffset(virtualBase) == 0);
-    assert(!(pte & PAGE_PRESENT_MASK));
+int handlePageFault(uint32_t virtualBase) {
+    uint32_t *pte_ptr = _getPtePointer(virtualBase);
+    uint32_t pte_val = (pte_ptr) ? *pte_ptr : 0;
+    if (pte_ptr && (pte_val & PAGE_SWAPPED_MASK)) {
+        int new_pfn = _loadFromDisk(pte_val); 
+        if (new_pfn < 0) return -1; // Fehler beim Laden (Disk Error)
 
-    (void) virtualBase;
-    (void) pte;
+        uint32_t preserved = pte_val & PRESERVED_BITS_ON_SWAP;
+        *pte_ptr = (new_pfn << 12) | PAGE_PRESENT_MASK | preserved;
+        
+        return 1; 
+    }
 
-    // ----------------
-    // Update the page table entry so it can be translated by the MMU
-    // (if access is valid). Return 1 on success, -1 on any error, and 0 if
-    // the accessed address is not part of a VMA and thus invalid.
-    // ----------------
+    // ---------------------------------------------------------
+    // FALL B: Die Seite ist neu / noch nie benutzt (VMA Check)
+    // ---------------------------------------------------------
+    // Das ist der "Otherwise"-Teil der Aufgabe.
+    
+    struct VMA *vma = _getVMA(virtualBase);
+    
+    // Wenn kein VMA gefunden wird -> Illegaler Zugriff
+    if (vma == NULL) {
+        return 0; 
+    }
 
-    return 0;
+    // Wir brauchen einen neuen Frame (leere Seite im RAM)
+    int new_pfn;
+    
+    // Unterscheidung: Datei (Code) oder Anonym (Heap/Stack)?
+    if (vma->type) { 
+        new_pfn = _getFilePage(vma, virtualBase);
+    } else {
+        new_pfn = _getZeroedPage();
+    }
+
+    if (new_pfn < 0) return -1; // Out of Memory
+
+    // Map Page schreibt den neuen PTE mit den Rechten aus dem VMA
+    if (mapPage(virtualBase, new_pfn, vma->privileges) != 0) {
+        return -1;
+    }
+
+    return 1; // Success
 }
+
 
 int swapOut(uint32_t virtualBase)
 {
     if (_getOffset(virtualBase) != 0) {
         return -1;
     }
+    uint32_t *pte_ptr = _getPtePointer(virtualBase);
+    if (pte_ptr == NULL) {
+        return -1;
+    }
 
-    // ----------------
-    // Swap out the page to disk with _storeOnDisk(). Save the disk offset in
-    // the PTE. Return 0 on success, -1 otherwise.
-    // ----------------
+    uint32_t old_pte_val = *pte_ptr;
+    int offset = _storeOnDisk(old_pte_val);
 
-    return -1;
+    if (offset == -1) {
+        return -1;
+    }
+
+    uint32_t preserved = old_pte_val & PRESERVED_BITS_ON_SWAP; // a) Alte Bits retten, die wir behalten müssen (z.B. User/Supervisor Rechte)
+
+    uint32_t swapped_flag = PAGE_SWAPPED_MASK; // b) Markieren, dass die Seite ausgelagert ist
+
+    uint32_t new_pte_val = (uint32_t)offset | swapped_flag | preserved; // c) Den Disk-Offset eintragen (ersetzt die alte PFN/Frame Number)
+
+    *pte_ptr = new_pte_val; // 4. In die Page Table zurückschreiben
+
+    return 0; 
 }

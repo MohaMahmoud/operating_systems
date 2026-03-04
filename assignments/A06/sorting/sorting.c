@@ -4,11 +4,10 @@
  * Swap both Integers the pointers are pointing to with each other.
  */
 void swap(int *pointer1, int *pointer2)
-{
-    (void) pointer1;
-    (void) pointer2;
-
-    // TODO
+{  
+    int temp = *pointer1;
+    *pointer1 = *pointer2;
+    *pointer2 = temp;
 }
 
 /**
@@ -16,10 +15,15 @@ void swap(int *pointer1, int *pointer2)
  */
 void insertionSort(int *toSort, size_t length)
 {
-    (void) toSort;
-    (void) length;
-
-    // TODO
+    for (size_t i = 1; i < length; i++)
+    {
+        size_t j = i;
+        while (j > 0 && toSort[j - 1] > toSort[j])
+        {
+            swap(&toSort[j], &toSort[j - 1]);  
+            j--;
+        }
+    }
 }
 
 /**
@@ -28,11 +32,11 @@ void insertionSort(int *toSort, size_t length)
  */
 int *copy(int *src, size_t length)
 {
-    (void) src;
-    (void) length;
-
-    // TODO
-    return NULL;
+    int *copy = (int*)malloc(length*sizeof(int));
+    for (size_t i = 0; i < length; i++) {
+        copy[i] = src[i];
+    }
+    return copy;
 }
 
 /**
@@ -41,13 +45,29 @@ int *copy(int *src, size_t length)
   */
 void merge(int *src, size_t start, size_t middle, size_t end, int *destToMergeInto)
 {
-    (void) src;
-    (void) start;
-    (void) middle;
-    (void) end;
-    (void) destToMergeInto;
-
-    // TODO
+    size_t i = start;
+    size_t j = middle;
+    size_t k = start;
+    while(i<middle && j<end) {
+        if (src[i]<src[j]) {
+            destToMergeInto[k] = src[i];
+            i++;
+        } else {
+            destToMergeInto[k] = src[j];
+            j++;
+        }
+        k++;
+    }
+    while (i < middle) {
+        destToMergeInto[k] = src[i];
+        i++;
+        k++;
+    }
+    while (j < end) {
+        destToMergeInto[k] = src[j];
+        j++;
+        k++;
+    }
 }
 
 /**
@@ -80,21 +100,29 @@ void mergeSort(int *toSort, size_t length)
  */
 void flip(int *stackOfPancakes, size_t numberOfPancakesToFlip)
 {
-    (void) stackOfPancakes;
-    (void) numberOfPancakesToFlip;
+    int temp;
+    size_t middle = numberOfPancakesToFlip/2;
+    for (size_t i = 0; i < middle; i++) {
+        temp = stackOfPancakes[i];
+        stackOfPancakes[i]=stackOfPancakes[numberOfPancakesToFlip-1-i];
+        stackOfPancakes[numberOfPancakesToFlip-1-i] = temp;
+    }
 }
 
 /**
  * Finds the index of the largest number in array with the given length.
  */
 size_t findIndexOfMax(int *array, size_t length)
-{
-    (void) array;
-    (void) length;
-
-    // TODO
-
-    return 42;
+{   
+    int max = array[0];
+    size_t max_index = 0;
+    for (size_t i = 0; i < length; i++) {
+        if (array[i] > max) {
+            max = array[i];
+            max_index = i;
+        }
+    }
+    return max_index;
 }
 
 /**

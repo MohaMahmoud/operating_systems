@@ -5,10 +5,13 @@
  */
 size_t stringlength(const char *s)
 {
-    (void) s;
-    
-    // TODO: Add code here.
-    return 0;   
+    if (s == NULL) {return 0;}
+    const char *current = s;
+    while (*current != '\0') {
+        current++;
+    }
+
+    return current - s;   
 }
 
 /**
@@ -17,12 +20,17 @@ size_t stringlength(const char *s)
  * Returns NULL on any error.
  */
 char *stringconcat(const char *s1, const char *s2)
-{
-    (void) s1;
-    (void) s2;
-   
-    // TODO: Add code here.
-    return NULL;   
+{   
+
+    size_t length1 = stringlength(s1);
+    size_t length2 = stringlength(s2);
+    size_t length3 = length1 + length2 + 1;
+    char *s3 = (char*)malloc(length3);
+    for (size_t i=0; i<length3; i++) {
+        s3[i] = (i < length1) ? s1[i] : s2[i-length1];
+    }
+    s3[length3] = '\0';
+    return s3;
 }
 
 /**
@@ -32,12 +40,36 @@ char *stringconcat(const char *s1, const char *s2)
  * Returns NULL on any error.
  */
 char **stringsplit(const char *toSplit, char delimiter)
-{
-    (void) toSplit;
-    (void) delimiter;
+{   
+    int delimeter_count = 0;
+    size_t string_length = stringlength(toSplit);
+    for (size_t i = 0; i<string_length; i++) {
+        if (toSplit[i] == delimiter) {
+            delimeter_count++;
+        }
+    }
+    char **split_array = (char**)malloc((delimeter_count+2)*sizeof(char*));
+    if (split_array == NULL) return NULL;
 
-    // TODO: Add code here.
-    return NULL;
+    int current = 0;
+    const char *start = toSplit;
+    const char *p = toSplit;
+    while(*p!='\0') {
+        if (*p == delimiter || *(p+1) == '\0') {
+            size_t word_length = p-start; //size of word before
+            split_array[current] = (char*)malloc(word_length + 1);
+            
+            for(size_t i=0; i < word_length; i++) {
+                split_array[current][i] = start[i];
+            }
+            split_array[current][word_length] = '\0'; 
+
+            current++;
+            start = p + 1; 
+        }
+        p++;
+    }
+    return split_array;
 }
 
 /**
@@ -45,6 +77,16 @@ char **stringsplit(const char *toSplit, char delimiter)
  */
 void stringsplit_free(char **parts)
 {
-    (void) parts;
-    // TODO: Free whatever memory you allocated in stringsplit().
+    if (parts == NULL) {
+        return;
+    }
+
+
+    char **p = parts;
+    while (*p != NULL) {
+        free(*p); 
+        p++;      
+    }
+
+    free(parts);
 }
