@@ -10,15 +10,31 @@
 
 FileSystem *mapFileSystem(char *diskFile)
 {
-    if (diskFile == NULL) {
+if (diskFile == NULL) return NULL;
+
+    // 1. Datei öffnen, um einen Dateideskriptor zu erhalten
+    int fd = open(diskFile, O_RDONLY);
+    if (fd < 0) return NULL;
+
+    // 2. Dateigröße ermitteln (notwendig für mmap)
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        close(fd);
         return NULL;
     }
 
-    // ----------------
-    // Use mmap system call to map the file into memory.
-    // ----------------
+    // 3. Datei in den Adressraum mappen
+    // PROT_READ: Erlaubt lesenden Zugriff
+    // MAP_SHARED: Änderungen (falls erlaubt) werden in die Datei geschrieben
+    void *map = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    
+    // Dateideskriptor kann nach mmap geschlossen werden
+    close(fd);
 
-    return NULL;
+    if (map == MAP_FAILED) return NULL;
+
+    // 4. Adresse auf die Zielstruktur casten und zurückgeben
+    return (FileSystem *)map;   
 }
 
 static OpenFileHandle *_openFileAtBlock(FileSystem *fs, uint32_t blockIndex,
@@ -49,8 +65,10 @@ static int _hasMoreBytes(OpenFileHandle *handle)
 
     // ----------------
     // Check if there are more bytes to read in the file.
-    // ----------------
-
+    // ---------------- 
+    if (handle->currentFileOffset < handle->length) {
+        return 1;
+    }
     return 0;
 }
 
@@ -103,8 +121,28 @@ static char _readFileByte(OpenFileHandle *handle)
     // Read a byte from the file. This should never fail, because the function
     // must not be called if there are not more bytes to read.
     // ----------------
+    // 1. Offset innerhalb des aktuellen Blocks berechnen.
+    // HINWEIS: Ersetze BLOCK_SIZE durch das Makro aus deiner filesystem.h 
+    // (manchmal auch FS_BLOCK_SIZE o.ä. genannt).
+    uint32_t blockOffset = handle->currentFileOffset % BLOCK_SIZE;
 
-    return 0;
+    // 2. Das Byte lesen. 
+    // HINWEIS: Passe "dataRegion" an den echten Namen des Daten-Arrays in 
+    // deiner FileSystem-Struktur an (z.B. fs->dataBlocks, fs->blocks etc.)
+    char *data = (char *)handle->fileSystem->dataRegion;
+    char byteRead = data[(handle->currentBlock * BLOCK_SIZE) + blockOffset];
+
+    // 3. Den Offset für den nächsten Lesezugriff erhöhen.
+    handle->currentFileOffset++;
+
+    // 4. FAT-Lookup: Wenn wir durch das Erhöhen exakt die Grenze eines Blocks 
+    // überschritten haben UND noch weitere Bytes in der Datei folgen, 
+    // updaten wir currentBlock auf den nächsten Block in der FAT.
+    if ((handle->currentFileOffset % BLOCK_SIZE == 0) && _hasMoreBytes(handle)) {
+        handle->currentBlock = handle->fileSystem->fat[handle->currentBlock];
+    }
+
+    return byteRead;
 }
 
 // This acts like the default linux read() system call on your file.

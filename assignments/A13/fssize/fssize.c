@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
 
 pthread_mutex_t lock;
 unsigned long long total; /* sum of file sizes */
@@ -119,13 +121,21 @@ unsigned long long getFilesystemSize(char *path) {
     sem_init(&stack_fill, 0, 0);
 
     /* TODO: initialize remaining global variables */
+    pthread_t threads[NUM_THREADS];
+    pthread_mutex_init(&lock, NULL);
 
     /* TODO: start scanning the directory */
+    addDirectory(path);
 
     /* TODO: spawn the threads, then wait for completion */
-
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_create(&threads[i], NULL, doWork, NULL);   
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
     /* TODO: free remaining resources */
-
+    pthread_mutex_destroy(&lock);
     sem_destroy(&stack_fill);
     hdestroy();
 
@@ -134,29 +144,68 @@ unsigned long long getFilesystemSize(char *path) {
 
 /* Read the given directory and process its files and directories. */
 void listDir(const char *dirpath) {
-    /* TODO */
-    (void) dirpath;
+    DIR *dir = opendir(dirpath);
+    if (dir == NULL) {
+        exit(-1);
+    }
+    struct dirent *entry;
+    errno = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        processEntry(dirpath, entry);
+        errno = 0;
+    }
+    if (errno != 0) {
+        exit(-1);
+    }
+    if (closedir(dir) == -1) {
+        exit(-1);
+    }
 }
 
 /* Calls the appropriate processing function for files and directories. */
 void processEntry(const char *dirpath, struct dirent *entry) {
     /* TODO: check entry->d_type */
-    (void) dirpath;
-    (void) entry;
+    char *new_path = makePath(dirpath, entry->d_name);
+    if (entry->d_type == DT_DIR) {
+        addDirectory(new_path);
+    } else if (entry->d_type == DT_REG) {
+        processFile(new_path);
+    }
+    free(new_path);
 }
 
 /* Process a file, reading its size. */
 void processFile(const char *path) {
-    /* TODO */
-    (void) path;
+
+    struct stat file_info;
+
+
+    if (stat(path, &file_info) != 0) {
+        perror("Fehler beim Lesen der Datei");
+        exit(-1);
+    }
+
+    pthread_mutex_lock(&lock);
+    if (tableContains(file_info.st_ino) == 0) {
+            tableInsert(file_info.st_ino);
+            total += file_info.st_size;
+        }
+    pthread_mutex_unlock(&lock);
 }
 
 /* Join a directory path and a filename to a newly-allocated string. */
 char *makePath(const char *dirpath, const char *name) {
-    /* TODO */
-    (void) dirpath;
-    (void) name;
-    return NULL;
+    char *dir_delimeter = (char*) '/';
+    size_t len = strlen(dirpath) + strlen(name) + 2;
+    char *new_path = malloc(len);
+    if (new_path == NULL) {
+        exit(-1);
+    }
+    strcpy(new_path, dirpath);
+    strcat(new_path, dir_delimeter);
+    strcat(new_path, name);
+    return new_path;
+
 }
 
 

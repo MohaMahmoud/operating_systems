@@ -20,8 +20,29 @@ void _printLine(unsigned int size, unsigned int sizeOnDisk, const char* name)
 
 int list(const char* path, const char *filterByExtension)
 {
-    (void) path;
-    (void) filterByExtension;
+    DIR *dir = opendir(path); //returns a pointer to the first file
+    if (dir == NULL) {
+        perror("Fehler beim Öffnen des Verzeichnisses");
+        return -1;
+    }
 
-    return -1;
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] == '.') {
+            continue; // Bricht den aktuellen Schleifendurchlauf ab und springt zum nächsten readdir
+        }
+        if (filterByExtension != NULL) {
+            const char* dot = strchr(entry->d_name, '.');
+            if (dot == NULL) {
+                continue;
+            }
+            if (strcmp(dot+1, filterByExtension) != 0) {
+                continue;
+            }
+        }
+        printf("Gefunden: %s\n", entry->d_name);
+    }
+    closedir(dir);
+    return 0;
 }

@@ -13,9 +13,21 @@
  */
 FILE *openAtOffset(const char *filename, long offset)
 {
-    // TODO
-    (void) filename; (void) offset;
-    return NULL;
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        return NULL;
+    }
+
+    // Seek to the specified offset from the beginning of the file (SEEK_SET)
+    // fseek returns 0 on success, non-zero on failure
+    if (fseek(file, offset, SEEK_SET) != 0) {
+        // If seeking fails, close the file to avoid a resource leak
+        fclose(file);
+        return NULL;
+    }
+
+    return file;
+
 }
 
 /*
@@ -23,20 +35,34 @@ FILE *openAtOffset(const char *filename, long offset)
  * any I/O error occurs or if not `len` bytes could be read.
  */
 char *allocateAndRead(FILE *file, size_t len)
-{
-    // TODO
-    (void) file; (void) len;
-    return NULL;
+{   
+    char *buffer = (char*) malloc(len);
+    if (buffer == NULL) {
+        return NULL;
+    }
+    size_t bytesRead = fread(buffer, 1, len, file);
+    if (bytesRead != len) {
+        free(buffer);
+        return NULL;
+    }
+
+    return buffer;
 }
 
 /*
  * Return the file size of the given file, or -1 if an error occurs.
  */
 int64_t getFileSize(const char *filename)
-{
-    // TODO
-    (void) filename;
-    return -1;
+{   
+    struct stat status_buffer;
+    if (stat(filename, &status_buffer) != 0) {
+        return -1;
+    }
+
+    // 3. Erfolgsfall: Dateigröße auslesen und zurückgeben
+    // st_size enthält die Größe in Bytes und ist oft vom Typ off_t.
+    // Wir casten es explizit zu int64_t, wie von der Signatur gefordert.
+    return (int64_t) status_buffer.st_size;
 }
 
 /*
